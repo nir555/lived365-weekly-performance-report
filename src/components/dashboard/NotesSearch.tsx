@@ -6,10 +6,10 @@ import { Note } from '@/lib/dataTypes';
 import { cn } from '@/lib/utils';
 
 const categoryColors = {
-  marketing: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  client: 'bg-blue-100 text-blue-700 border-blue-200',
-  resource: 'bg-amber-100 text-amber-700 border-amber-200',
-  mod: 'bg-rose-100 text-rose-700 border-rose-200',
+  marketing: 'bg-primary/10 text-primary border-primary/20',
+  client: 'bg-primary/10 text-primary border-primary/20',
+  resource: 'bg-primary/10 text-primary border-primary/20',
+  mod: 'bg-primary/10 text-primary border-primary/20',
 };
 
 export function NotesSearch() {
@@ -20,7 +20,7 @@ export function NotesSearch() {
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm p-5 animate-fade-in">
       <div className="flex items-center gap-2 mb-4">
-        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-sm">
+        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
           <MessageSquare className="h-4 w-4 text-white" />
         </div>
         <h3 className="text-base font-semibold text-foreground">Notes Search</h3>

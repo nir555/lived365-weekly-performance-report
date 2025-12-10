@@ -1,22 +1,27 @@
-import { useState, useMemo } from 'react';
-import { Mail, Calendar, FileText, UserPlus, TrendingUp, Target, Handshake, Building2, BookUser, ChevronLeft, ChevronRight, CalendarDays, BarChart3 } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Mail, Calendar, FileText, UserPlus, TrendingUp, Target, Handshake, Building2, BookUser, ChevronLeft, ChevronRight, CalendarDays, BarChart3, Search } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { WeekSelector } from '@/components/dashboard/WeekSelector';
-import { KPICard } from '@/components/dashboard/KPICard';
 import { SectionCard } from '@/components/dashboard/SectionCard';
 import { MetricRow } from '@/components/dashboard/MetricRow';
-import { NotesSearch } from '@/components/dashboard/NotesSearch';
-import { PerformanceChart } from '@/components/dashboard/PerformanceChart';
-import { getWeeksForMonth, getCurrentWeek } from '@/lib/weekUtils';
-import { getWeeklyData, getWeeklyDataByWeek, getNotesForWeek, getNoteForField } from '@/lib/storage';
+import { MarketingChart } from '@/components/dashboard/MarketingChart';
+import { ClientPipeline } from '@/components/dashboard/ClientPipeline';
+import { ResourceCharts } from '@/components/dashboard/ResourceCharts';
+import { ModTrend } from '@/components/dashboard/ModTrend';
+import { getWeeksForMonth, getCurrentWeek, formatWeekLabel } from '@/lib/weekUtils';
+import { getWeeklyData, getWeeklyDataByWeek, getNotesForWeek, getNotes, getNoteForField } from '@/lib/storage';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { format, parseISO } from 'date-fns';
 
 export default function Dashboard() {
   const [monthOffset, setMonthOffset] = useState(0);
   const weeks = useMemo(() => getWeeksForMonth(monthOffset, true), [monthOffset]);
   const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek().value);
   const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [weekRange, setWeekRange] = useState(4); // Number of weeks to show in weekly view
+  const [monthRange, setMonthRange] = useState(2); // Number of months to show in monthly view
   
   const currentMonth = useMemo(() => {
     const date = new Date();
@@ -27,17 +32,47 @@ export default function Dashboard() {
   const allData = useMemo(() => getWeeklyData(), []);
   const weekData = useMemo(() => getWeeklyDataByWeek(selectedWeek), [selectedWeek]);
   const weekNotes = useMemo(() => getNotesForWeek(selectedWeek), [selectedWeek]);
+  const [notesQuery, setNotesQuery] = useState('');
+  const allNotes = useMemo(() => getNotes(), []);
+
+  useEffect(() => {
+    setNotesQuery('');
+  }, [selectedWeek, viewMode]);
+
+  const filteredNotes = useMemo(() => {
+    const sourceNotes = viewMode === 'weekly' ? weekNotes : allNotes;
+    const normalized = notesQuery.trim().toLowerCase();
+    if (!normalized) return sourceNotes;
+    return sourceNotes.filter(note =>
+      note.text.toLowerCase().includes(normalized) ||
+      note.category.toLowerCase().includes(normalized) ||
+      note.field.toLowerCase().includes(normalized)
+    );
+  }, [weekNotes, allNotes, viewMode, notesQuery]);
+
+  // Get last N weeks for weekly view charts
+  const lastNWeeks = useMemo(() => {
+    const currentWeekIndex = allData.findIndex(w => w.weekStart === selectedWeek);
+    if (currentWeekIndex === -1) return allData.slice(-weekRange);
+    const startIndex = Math.max(0, currentWeekIndex - (weekRange - 1));
+    return allData.slice(startIndex, currentWeekIndex + 1);
+  }, [allData, selectedWeek, weekRange]);
 
   // Get data filtered by selected month for charts
   const monthFilteredData = useMemo(() => {
     if (viewMode === 'weekly') {
-      return allData;
+      return lastNWeeks;
     }
     
-    // For monthly view, filter all data to only include weeks from selected month
-    const monthWeekValues = weeks.map(w => w.value);
-    return allData.filter(item => monthWeekValues.includes(item.weekStart));
-  }, [allData, weeks, viewMode]);
+    // For monthly view, get current month and previous N-1 months
+    const allMonthWeeks: string[] = [];
+    for (let i = 0; i < monthRange; i++) {
+      const monthWeeks = getWeeksForMonth(monthOffset - i, false).map(w => w.value);
+      allMonthWeeks.push(...monthWeeks);
+    }
+    
+    return allData.filter(item => allMonthWeeks.includes(item.weekStart));
+  }, [allData, weeks, viewMode, monthOffset, selectedWeek, lastNWeeks, weekRange, monthRange]);
 
   // Calculate monthly data by aggregating all weeks in the selected month
   const monthlyData = useMemo(() => {
@@ -81,107 +116,172 @@ export default function Dashboard() {
   const modTotal = displayData.mod.partnerRegistration + displayData.mod.clientRegistration;
 
   return (
-    <div className="min-h-screen w-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 overflow-x-hidden">
+    <div className="min-h-screen w-screen bg-white dark:bg-slate-950 overflow-x-hidden">
       <Header />
       
-      <main className="w-full px-4 sm:px-6 md:px-8 py-6 sm:py-8 space-y-8 sm:space-y-10 mx-auto max-w-7xl">
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 md:gap-8">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 md:gap-4 mb-3">
-              <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow flex-shrink-0">
-                <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent truncate">Performance Dashboard</h1>
-            </div>
-            <p className="text-muted-foreground ml-12 md:ml-16 text-sm md:text-base">Track your team's weekly metrics and achievements</p>
+      <main className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-3 sm:py-4 space-y-3 sm:space-y-4 mx-auto max-w-7xl">
+        {/* Header Section - Compact */}
+        <div className="flex items-center justify-end gap-0.5 pb-1">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/80 px-1 py-0.5">
+            <button
+              onClick={() => setMonthOffset(monthOffset - 1)}
+              className="p-0.5 hover:bg-slate-200/40 dark:hover:bg-slate-700/40 rounded transition-colors"
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="h-2 w-2" />
+            </button>
+            <span className="text-3xs font-semibold tracking-tight px-0.5 whitespace-nowrap">{currentMonth}</span>
+            <button
+              onClick={() => setMonthOffset(monthOffset + 1)}
+              disabled={monthOffset > 0}
+              className="p-0.5 hover:bg-slate-200/40 dark:hover:bg-slate-700/40 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-2 w-2" />
+            </button>
           </div>
           
-          <div className="flex flex-row items-center flex-wrap gap-2 md:gap-3">
-              <div className="flex items-center gap-2 bg-card rounded-lg border border-border p-1">
-              <button
-                onClick={() => setMonthOffset(monthOffset - 1)}
-                className="p-2 hover:bg-accent rounded-md transition-colors"
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-sm font-medium px-3 whitespace-nowrap">{currentMonth}</span>
-              <button
-                onClick={() => setMonthOffset(monthOffset + 1)}
-                disabled={monthOffset > 0}
-                className="p-2 hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Next month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'weekly' | 'monthly')}>
-              <TabsList className="h-9 bg-muted/50 rounded-xl p-1">
-                <TabsTrigger value="weekly" className="rounded-lg text-xs sm:text-sm px-3 sm:px-4 data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5 flex items-center">
-                  <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  Weekly
-                </TabsTrigger>
-                <TabsTrigger value="monthly" className="rounded-lg text-xs sm:text-sm px-3 sm:px-4 data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5 flex items-center">
-                  <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  Monthly
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {viewMode === 'weekly' && (
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'weekly' | 'monthly')} className="w-auto">
+            <TabsList className="flex h-4 bg-muted/60 rounded-lg p-0.5 gap-0.5">
+              <TabsTrigger value="weekly" className="rounded text-3xs px-1 py-0 data-[state=active]:bg-card data-[state=active]:shadow-sm gap-0.5 flex items-center">
+                <CalendarDays className="h-2 w-2" />
+                <span className="hidden sm:inline">W</span>
+              </TabsTrigger>
+              <TabsTrigger value="monthly" className="rounded text-3xs px-1 py-0 data-[state=active]:bg-card data-[state=active]:shadow-sm gap-0.5 flex items-center">
+                <BarChart3 className="h-2 w-2" />
+                <span className="hidden sm:inline">M</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          {/* Range Selector */}
+          <Select 
+            value={viewMode === 'weekly' ? weekRange.toString() : monthRange.toString()} 
+            onValueChange={(v) => viewMode === 'weekly' ? setWeekRange(Number(v)) : setMonthRange(Number(v))}
+          >
+            <SelectTrigger className="h-4 w-12 bg-card border-border rounded-lg shadow-sm text-3xs px-1 py-0.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {viewMode === 'weekly' ? (
+                <>
+                  <SelectItem value="1">1w</SelectItem>
+                  <SelectItem value="2">2w</SelectItem>
+                  <SelectItem value="3">3w</SelectItem>
+                  <SelectItem value="4">4w</SelectItem>
+                  <SelectItem value="6">6w</SelectItem>
+                  <SelectItem value="8">8w</SelectItem>
+                </>
+              ) : (
+                <>
+                  <SelectItem value="1">1m</SelectItem>
+                  <SelectItem value="2">2m</SelectItem>
+                  <SelectItem value="3">3m</SelectItem>
+                  <SelectItem value="4">4m</SelectItem>
+                  <SelectItem value="6">6m</SelectItem>
+                </>
+              )}
+            </SelectContent>
+          </Select>
+          
+          {viewMode === 'weekly' && (
+            <div className="hidden lg:block">
               <WeekSelector 
                 selectedWeek={selectedWeek} 
                 onWeekChange={setSelectedWeek} 
                 weeks={weeks}
               />
-            )}
+            </div>
+          )}
+        </div>
+        
+        {viewMode === 'weekly' && (
+          <div className="lg:hidden">
+            <WeekSelector 
+              selectedWeek={selectedWeek} 
+              onWeekChange={setSelectedWeek} 
+              weeks={weeks}
+            />
+          </div>
+        )}
+
+        {/* KPI Summary - Single Modal Horizontal */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-border p-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 border-r border-border/50 pr-4">
+              <p className="text-2xl font-bold text-foreground">{displayData.marketing.emailsSent}</p>
+              <p className="text-4xs text-muted-foreground">Emails Sent</p>
+            </div>
+            <div className="flex-1 border-r border-border/50 pr-4">
+              <p className="text-2xl font-bold text-foreground">{displayData.marketing.totalMeetingSchedule}</p>
+              <p className="text-4xs text-muted-foreground">Meetings Scheduled</p>
+            </div>
+            <div className="flex-1 border-r border-border/50 pr-4">
+              <p className="text-2xl font-bold text-foreground">{displayData.client.submitProfiles}</p>
+              <p className="text-4xs text-muted-foreground">Profiles Submitted</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-2xl font-bold text-foreground">{displayData.resource.registerOnLiveD365}</p>
+              <p className="text-4xs text-muted-foreground">LiveD Registrations</p>
+            </div>
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
-          <KPICard 
-            label="Emails Sent" 
-            value={displayData.marketing.emailsSent} 
-            icon={Mail} 
-            category="marketing"
-            delay={0}
-          />
-          <KPICard 
-            label="Meetings Scheduled" 
-            value={displayData.marketing.totalMeetingSchedule} 
-            icon={Calendar} 
-            category="marketing"
-            delay={50}
-          />
-          <KPICard 
-            label="Profiles Submitted" 
-            value={displayData.client.submitProfiles} 
-            icon={FileText} 
-            category="client"
-            delay={100}
-          />
-          <KPICard 
-            label="LiveD Registrations" 
-            value={displayData.resource.registerOnLiveD365} 
-            icon={UserPlus} 
-            category="resource"
-            delay={150}
-          />
+        {/* Charts Section - 3 Column Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-4 pb-4">
+          {/* Marketing Emails */}
+          <div className="space-y-3">
+            <h2 className="text-5xs font-semibold text-foreground">
+              Marketing Emails
+            </h2>
+            <MarketingChart data={monthFilteredData} type="email" />
+          </div>
+
+          {/* Apollo */}
+          <div className="space-y-3">
+            <h2 className="text-5xs font-semibold text-foreground">
+              Apollo
+            </h2>
+            <MarketingChart data={monthFilteredData} type="apollo" />
+          </div>
+
+          {/* LinkedIn */}
+          <div className="space-y-3">
+            <h2 className="text-5xs font-semibold text-foreground">
+              LinkedIn
+            </h2>
+            <MarketingChart data={monthFilteredData} type="linkedin" />
+          </div>
+
+          {/* Client Pipeline */}
+          <div className="space-y-3">
+            <h2 className="text-5xs font-semibold text-foreground">
+              Client Pipeline
+            </h2>
+            <ClientPipeline data={monthFilteredData} />
+          </div>
+
+          {/* Resource Pipeline */}
+          <div className="space-y-3">
+            <h2 className="text-5xs font-semibold text-foreground">
+              Resource Pipeline
+            </h2>
+            <ResourceCharts data={monthFilteredData} />
+          </div>
+
+          {/* MOD Trend */}
+          <div className="space-y-3">
+            <h2 className="text-5xs font-semibold text-foreground">
+              MOD Overview
+            </h2>
+            <ModTrend data={monthFilteredData} />
+          </div>
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <PerformanceChart data={monthFilteredData} type="pie" />
-          <PerformanceChart data={monthFilteredData} type="line" />
-        </div>
-
-        {/* Main Grid - Metrics & Notes */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Left Column - Category Sections */}
-          <div className="lg:col-span-2 space-y-3 md:space-y-4">
-            <SectionCard title="Marketing" category="marketing" icon={Target} badge={marketingTotal} defaultOpen={false}>
+        {/* Metrics + Notes */}
+        <div className="grid gap-3 pt-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="space-y-2">
+            <SectionCard title="Marketing" category="marketing" badge={marketingTotal} defaultOpen={false}>
               <MetricRow 
                 label="Marketing Email Sent" 
                 value={displayData.marketing.emailsSent}
@@ -234,7 +334,7 @@ export default function Dashboard() {
               />
             </SectionCard>
 
-            <SectionCard title="Client" category="client" icon={Handshake} badge={clientTotal} defaultOpen={false}>
+            <SectionCard title="Client" category="client" badge={clientTotal} defaultOpen={false}>
               <MetricRow 
                 label="Get Requirement" 
                 value={displayData.client.requirementNew + displayData.client.requirementOld}
@@ -265,7 +365,7 @@ export default function Dashboard() {
               />
             </SectionCard>
 
-            <SectionCard title="Resource" category="resource" icon={BookUser} badge={resourceTotal} defaultOpen={false}>
+            <SectionCard title="Resource" category="resource" badge={resourceTotal} defaultOpen={false}>
               <MetricRow 
                 label="Resource Reachout (Krisha)" 
                 value={displayData.resource.totalReachout}
@@ -290,7 +390,7 @@ export default function Dashboard() {
               />
             </SectionCard>
 
-            <SectionCard title="Mod" category="mod" icon={Building2} badge={modTotal} defaultOpen={false}>
+            <SectionCard title="Mod" category="mod" badge={modTotal} defaultOpen={false}>
               <MetricRow 
                 label="Partner Registration" 
                 value={displayData.mod.partnerRegistration} 
@@ -305,38 +405,55 @@ export default function Dashboard() {
               />
             </SectionCard>
           </div>
-
-          {/* Right Column - Notes */}
-          <div>
-            {viewMode === 'weekly' ? (
-              <div className="bg-card rounded-lg border border-border p-4 md:p-6 space-y-4">
-                <h3 className="font-semibold text-foreground">Notes for this week</h3>
-                {weekNotes.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {weekNotes.map((note) => (
-                      <div key={note.id} className="p-3 bg-accent/50 rounded-lg border border-border/50">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-primary/20 text-primary">
-                              {note.category}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{note.field}</span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-foreground">{note.text}</p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(note.createdAt).toLocaleDateString()} {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">No notes added for this week yet</p>
-                )}
+          <div className="space-y-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xs font-semibold text-foreground">{viewMode === 'weekly' ? 'Week Notes' : 'Notes Explorer'}</h3>
+                  <p className="text-3xs text-muted-foreground">
+                    {viewMode === 'weekly' ? formatWeekLabel(selectedWeek) : 'All recorded notes'}
+                  </p>
+                </div>
+                <span className="text-3xs text-muted-foreground">
+                  {filteredNotes.length} {filteredNotes.length === 1 ? 'note' : 'notes'}
+                </span>
               </div>
-            ) : (
-              <NotesSearch />
-            )}
+              <div className="relative">
+                <Search className="absolute inset-y-0 left-3 my-auto h-3 w-3 text-muted-foreground" />
+                <Input
+                  value={notesQuery}
+                  onChange={(event) => setNotesQuery(event.target.value)}
+                  className="pl-9 h-8 text-2xs"
+                  placeholder={viewMode === 'weekly' ? 'Search this week notes' : 'Search all notes'}
+                />
+              </div>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-2 space-y-1">
+              {filteredNotes.length > 0 ? (
+                <div className="space-y-0.5 max-h-48 overflow-y-auto pr-1">
+                  {filteredNotes.map((note) => (
+                    <div key={note.id} className="p-1.5 bg-accent/40 rounded border border-border/50 space-y-0.5">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="inline-flex items-center text-3xs font-semibold uppercase tracking-wide px-1 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">
+                          {note.category}
+                        </span>
+                        <span className="text-2xs text-muted-foreground">{format(parseISO(note.createdAt), 'MMM d, h:mm a')}</span>
+                      </div>
+                      <div>
+                        <p className="text-3xs text-muted-foreground font-medium mb-0">{note.field}</p>
+                        <p className="text-2xs text-foreground leading-tight line-clamp-2">{note.text}</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-2xs text-muted-foreground">
+                        <Calendar className="h-2.5 w-2.5" />
+                        <span className="text-2xs">{note.weekStart} — {note.weekEnd}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-2xs text-muted-foreground italic">No notes added</p>
+              )}
+            </div>
           </div>
         </div>
       </main>

@@ -11,16 +11,16 @@ interface WeekSelectorProps {
 export function WeekSelector({ selectedWeek, onWeekChange, weeks }: WeekSelectorProps) {
   return (
     <Select value={selectedWeek} onValueChange={onWeekChange}>
-      <SelectTrigger className="w-auto h-9 bg-card border-border rounded-xl shadow-sm font-medium gap-2 flex items-center px-3 sm:px-4">
-        <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+      <SelectTrigger className="w-auto h-4 bg-card border-border rounded-md shadow-sm text-3xs gap-1 flex items-center px-1">
+        <Calendar className="h-2 w-2 text-primary flex-shrink-0" />
         <SelectValue placeholder="Select week" />
       </SelectTrigger>
-      <SelectContent className="rounded-xl">
+      <SelectContent className="rounded-md">
         {weeks.map((week) => (
           <SelectItem 
             key={week.value} 
             value={week.value}
-            className="rounded-lg"
+            className="rounded"
           >
             {week.label}
           </SelectItem>

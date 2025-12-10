@@ -11,24 +11,24 @@ interface EntrySectionCardProps {
 
 const categoryStyles = {
   marketing: {
-    border: 'border-l-marketing',
-    bg: 'bg-marketing/5',
-    dot: 'bg-marketing',
+    border: 'border-l-primary',
+    bg: 'bg-primary/5',
+    dot: 'bg-primary',
   },
   client: {
-    border: 'border-l-client',
-    bg: 'bg-client/5',
-    dot: 'bg-client',
+    border: 'border-l-primary',
+    bg: 'bg-primary/5',
+    dot: 'bg-primary',
   },
   resource: {
-    border: 'border-l-resource',
-    bg: 'bg-resource/5',
-    dot: 'bg-resource',
+    border: 'border-l-primary',
+    bg: 'bg-primary/5',
+    dot: 'bg-primary',
   },
   mod: {
-    border: 'border-l-mod',
-    bg: 'bg-mod/5',
-    dot: 'bg-mod',
+    border: 'border-l-primary',
+    bg: 'bg-primary/5',
+    dot: 'bg-primary',
   },
 };
 

@@ -72,7 +72,8 @@ export function PerformanceChart({ data, type }: PerformanceChartProps) {
                   borderRadius: '12px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                   padding: '12px',
-                }} 
+                }}
+                cursor={{ fill: 'hsl(var(--muted)/0.08)' }}
                 labelStyle={{ fontWeight: 600, marginBottom: 4 }}
               />
               <Area 
@@ -155,7 +156,7 @@ export function PerformanceChart({ data, type }: PerformanceChartProps) {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                   padding: '12px',
                 }} 
-                cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
+                cursor={{ fill: 'hsl(var(--muted)/0.08)' }}
               />
               <Bar 
                 dataKey="value" 

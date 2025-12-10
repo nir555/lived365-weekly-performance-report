@@ -112,8 +112,8 @@ export default function WeeklyEntry() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Weekly Data Entry</h1>
-            <p className="text-muted-foreground mt-1">Enter your team's performance metrics</p>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Weekly Data Entry</h1>
+            <p className="text-muted-foreground mt-1 text-xs md:text-sm">Enter your team's performance metrics</p>
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
